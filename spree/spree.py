@@ -28,11 +28,12 @@ class Spree(object):
 
 
 class Pagination(object):
-    def __init__(self, data, items_attribute, resource):
+    def __init__(self, data, items_attribute, resource, filters=None):
         self.data = data
         self.items = data[items_attribute]
         self.current_index = -1
         self.resource = resource
+        self.filters = filters
 
     @property
     def count(self):
@@ -52,7 +53,8 @@ class Pagination(object):
 
     def next_page(self):
         if self.has_next:
-            return self.resource.all(page=self.page + 1)
+            return self.resource.find(
+                page=self.page + 1, filters=self.filters)
 
     def __iter__(self):
         return self
@@ -87,22 +89,33 @@ class Resource(object):
     def load_payload(self, data):
         return data
 
-    def all(self, page=1):
-        params = {
+    def find(self, page=1, filters=None):
+        """
+        Find all records that respect given filters
+
+        :param filters: Dictionary whose key-value pairs are in
+        for of: {
+            'q[name_of_parameter_identifier]': 'some-value',
+        }
+        Reference: https://github.com/ernie/ransack/wiki/Basic-Searching
+        :return: Paginated list of response
+        """
+        params = filters or {}
+        params.update({
             'page': page,
             'per_page': self.per_page,
-        }
+        })
         response = self.connection.session.get(self.url, params=params).json()
         return Pagination(
             response,
             self.item_attribute,
-            resource=self
+            resource=self,
+            filters=filters,
         )
 
-    def find(self, id):
-        "find a given record"
-        # str() - ordernumber is a string
-        path = self.url + '/%s' % str(id)
+    def get(self, id):
+        "Fetch a record with given id"
+        path = self.url + '/%s' % id
         return self.connection.session.get(path).json()
 
     def create(self, data):
@@ -194,13 +207,13 @@ class StockItem(Resource):
             payload['stock_item[force]'] = data['force']
         return super(StockItem, self).load_payload(payload)
 
-    def all(self, stk_loc_id):
+    def find(self, stk_loc_id, *args, **kwargs):
         self.path = self.append_path(stk_loc_id)
-        return super(StockItem, self).all()
+        return super(StockItem, self).find(*args, **kwargs)
 
-    def find(self, stk_loc_id, stk_id):
+    def get(self, stk_loc_id, id):
         self.path = self.append_path(stk_loc_id)
-        return super(StockItem, self).find(stk_id)
+        return super(StockItem, self).get(id)
 
     def update(self, stk_loc_id, stk_id, data):
         self.path = self.append_path(stk_loc_id)
@@ -219,6 +232,6 @@ class Variant(Resource):
     path = '/variants'
     item_attribute = 'variants'
 
-    def all(self, permalink):
+    def find(self, permalink):
         self.path = '/products' + '/' + permalink + self.path
-        return super(Variant, self).all()
+        return super(Variant, self).find()
