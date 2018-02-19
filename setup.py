@@ -10,6 +10,7 @@ with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
 requirements = [
+    requests
 ]
 
 test_requirements = [
@@ -18,7 +19,7 @@ test_requirements = [
 
 setup(
     name='spree',
-    version='0.4.3',
+    version='0.4.4',
     description="Spree python api client",
     long_description=readme + '\n\n' + history,
     author="Fulfil.IO Inc.",
